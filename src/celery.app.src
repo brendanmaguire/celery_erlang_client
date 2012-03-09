@@ -1,0 +1,15 @@
+%% -*- Mode: Erlang; fill-column: 75; comment-column: 50 -*-
+
+{application, celery,
+ [
+  {description, "Celery AMQP RPC Client"},
+  {vsn, "0.0.1"},
+  {registered, [celery_sup]},
+  {modules, [celery_app, celery_sup, celery]},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { celery_app, []}},
+  {env, []}
+ ]}.
