@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 -include("celery.hrl").
--include("deps/amqp_client/include/amqp_client.hrl").
+-include_lib("amqp_client/include/amqp_client.hrl").
 
 %% API
 -export([start_link/2, stop/0]).

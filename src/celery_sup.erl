@@ -2,7 +2,7 @@
 
 -behaviour(supervisor).
 
--include("deps/amqp_client/include/amqp_client.hrl").
+-include_lib("amqp_client/include/amqp_client.hrl").
 
 %% API
 -export([start_link/0]).
