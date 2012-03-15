@@ -15,7 +15,7 @@
 
 %% API
 -export([start_link/2, stop/0]).
--export([call/1]).
+-export([call/1, call/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -61,6 +61,8 @@ stop() ->
 call(Msg = #celery_msg{}) ->
     gen_server:call(?SERVER, {call, Msg}, ?RPC_TIMEOUT).
 
+call(Msg = #celery_msg{}, Timeout) ->
+    gen_server:call(?SERVER, {call, Msg}, Timeout).
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
