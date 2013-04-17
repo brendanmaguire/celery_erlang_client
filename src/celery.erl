@@ -213,8 +213,10 @@ publish(Payload, From, State
 		 routing_key    = RoutingKey,
 		 correlation_id = CorrelationId,
 		 continuations  = Continuations}) ->
-    Props = #'P_basic'{correlation_id = list_to_binary(integer_to_list(CorrelationId)),
-		       content_type   = <<"application/json">>},
+    Props = #'P_basic'{
+                correlation_id = list_to_binary(integer_to_list(CorrelationId)),
+                content_type   = <<"application/json">>
+            },
 
     Publish = #'basic.publish'{exchange    = <<"celery">>,
 			       routing_key = RoutingKey,
@@ -236,7 +238,11 @@ publish(Payload, From, State
     
 setup_reply_queue(#state{channel = Channel, reply_queue = Q}) ->
     #'queue.declare_ok'{} =
-	amqp_channel:call(Channel, #'queue.declare'{queue = Q, durable = false, auto_delete = true}).
+        amqp_channel:call(Channel,
+                          #'queue.declare'{
+                                queue = Q, durable = false, auto_delete = true,
+                                arguments = [{<<"x-expires">>, signedint,
+                                              86400000}]}).
 
 setup_consumer(#state{channel = Chan, reply_queue = Q}) ->
     amqp_channel:call(Chan, #'basic.consume'{queue = Q}).
