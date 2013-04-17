@@ -167,11 +167,18 @@ handle_info({#'basic.deliver'{delivery_tag = DeliveryTag,
       result    = proplists:get_value(<<"result">>, Reply),
       traceback = proplists:get_value(<<"traceback">>, Reply)},
     Id = Result#celery_res.task_id,
-    From = dict:fetch(Id, Conts),
-    gen_server:reply(From, Result),
+    NewState = case dict:is_key(Id, Conts) of
+        true ->
+            From = dict:fetch(Id, Conts),
+            gen_server:reply(From, Result),
+            State#state{continuations = dict:erase(Id, Conts)};
+        _ ->
+            State
+    end,
+
     amqp_channel:call(Chan, #'basic.ack'{delivery_tag = DeliveryTag}),
     amqp_channel:call(Chan, #'basic.cancel'{consumer_tag = ConsumerTag}),
-    {noreply, State#state{continuations = dict:erase(Id, Conts) }};
+    {noreply, NewState};
 
 handle_info(Info, State) ->
     io:format("Info: ~p~n", [Info]),
