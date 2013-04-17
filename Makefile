@@ -13,3 +13,6 @@ clean:
 	rm -f erl_crash.dump
 
 dist-clean: clean
+
+test: app
+	@./rebar eunit skip_deps=true
