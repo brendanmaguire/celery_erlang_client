@@ -1,4 +1,4 @@
--module(test).
+-module(demo).
 
 -include("include/celery.hrl").
 -include("deps/amqp_client/include/amqp_client.hrl").
