@@ -15,11 +15,11 @@
 
 %% API
 -export([start_link/2, stop/0]).
--export([call/1, call/2]).
+-export([call/1, call/2, cast/1, cast/2]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
+         code_change/3]).
 
 -define(SERVER, ?MODULE). 
 -define(RPC_TIMEOUT, 10000).
@@ -63,6 +63,26 @@ call(Msg = #celery_msg{}) ->
 
 call(Msg = #celery_msg{}, Timeout) ->
     gen_server:call(?SERVER, {call, Msg}, Timeout).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Cast asynchronous request to invoke remote procedure
+%%
+%% The Recipient parameter can be used if the reply should be sent to
+%% a Pid other than the caller
+%%
+%% @spec call(RpcClient, Payload) -> ok
+%% where
+%%      RpcClient = pid()
+%%      Payload = binary()
+%% @end
+%%--------------------------------------------------------------------
+cast(Msg = #celery_msg{}) ->
+    cast(Msg, self()).
+
+cast(Msg = #celery_msg{}, Recipient) ->
+    gen_server:cast(?MODULE, {request, Recipient, Msg}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -103,7 +123,7 @@ init([Connection, RoutingKey]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({call, Payload}, From, State) ->
-    State1 = publish(Payload, From, State),
+    State1 = publish(Payload, From, fun gen_server:reply/2, State),
     {noreply, State1};
 
 handle_call(_Request, _From, State) ->
@@ -120,11 +140,18 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({request, From, Payload}, State) ->
+    State1 = publish(Payload, From, fun async_reply/2, State),
+    {noreply, State1};
+
 handle_cast(stop, State) ->
     {stop, normal, State};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
+
+async_reply(Caller, Msg) ->
+    Caller ! Msg.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -169,8 +196,8 @@ handle_info({#'basic.deliver'{delivery_tag = DeliveryTag,
     Id = Result#celery_res.task_id,
     NewState = case dict:is_key(Id, Conts) of
         true ->
-            From = dict:fetch(Id, Conts),
-            gen_server:reply(From, Result),
+            {From, ReturnMethod} = dict:fetch(Id, Conts),
+            ReturnMethod(From, Result),
             State#state{continuations = dict:erase(Id, Conts)};
         _ ->
             State
@@ -215,7 +242,7 @@ code_change(OldVsn, State, Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-publish(Payload, From, State
+publish(Payload, From, ReturnMethod, State
 	= #state{channel        = Channel,
 		 routing_key    = RoutingKey,
 		 correlation_id = CorrelationId,
@@ -241,7 +268,7 @@ publish(Payload, From, State
     amqp_channel:call(Channel, Publish, #amqp_msg{props   = Props,
 						  payload = Payload1}),
     State1#state{correlation_id = CorrelationId + 1,
-		 continuations = dict:store(Id, From, Continuations)}.
+		 continuations = dict:store(Id, {From, ReturnMethod}, Continuations)}.
     
 setup_reply_queue(#state{channel = Channel, reply_queue = Q}) ->
     #'queue.declare_ok'{} =
