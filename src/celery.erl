@@ -15,7 +15,7 @@
 
 %% API
 -export([start_link/2, stop/0]).
--export([call/1, call/2, cast/1, cast/2]).
+-export([call/1, call/2, cast/1, cast/2, cast/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -71,17 +71,18 @@ call(Msg = #celery_msg{}, Timeout) ->
 %% The Recipient parameter can be used if the reply should be sent to
 %% a Pid other than the caller
 %%
-%% @spec call(RpcClient, Payload) -> ok
-%% where
-%%      RpcClient = pid()
-%%      Payload = binary()
-%% @end
+%% The RequestId parameter can be used to explicitly specify the
+%% celery rpc request id which can be used by the Recipient to
+%% distinguish task responses
 %%--------------------------------------------------------------------
 cast(Msg = #celery_msg{}) ->
     cast(Msg, self()).
 
 cast(Msg = #celery_msg{}, Recipient) ->
-    gen_server:cast(?MODULE, {request, Recipient, Msg}).
+    gen_server:cast(?MODULE, {request, Msg, Recipient}).
+
+cast(Msg = #celery_msg{}, Recipient, RequestId) ->
+    gen_server:cast(?MODULE, {request, Msg, Recipient, RequestId}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -100,8 +101,6 @@ cast(Msg = #celery_msg{}, Recipient) ->
 %%--------------------------------------------------------------------
 init([Connection, RoutingKey]) ->
     {ok, Channel} = amqp_connection:open_channel(Connection),
-%    {ok, Channel} = amqp_connection:open_channel(
-%		      Connection, {amqp_direct_consumer, [self()]}),
     InitState = #state{channel = Channel,
 		       exchange = <<>>,
 		       routing_key = RoutingKey},
@@ -140,8 +139,12 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({request, From, Payload}, State) ->
+handle_cast({request, Payload, From}, State) ->
     State1 = publish(Payload, From, fun async_reply/2, State),
+    {noreply, State1};
+
+handle_cast({request, Payload, From, RequestId}, State) ->
+    State1 = publish(Payload, From, fun async_reply/2, RequestId, State),
     {noreply, State1};
 
 handle_cast(stop, State) ->
@@ -241,12 +244,16 @@ code_change(OldVsn, State, Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+publish(Payload, From, ReturnMethod, State) ->
+    UUID = uuid:to_string(uuid:v4()),
+    RequestId = list_to_binary("celery_rpc_" ++ UUID),
+    publish(Payload, From, ReturnMethod, RequestId, State).
 
-publish(Payload, From, ReturnMethod, State
+publish(Payload, From, ReturnMethod, RequestId, State
 	= #state{channel        = Channel,
-		 routing_key    = RoutingKey,
-		 correlation_id = CorrelationId,
-		 continuations  = Continuations}) ->
+             routing_key    = RoutingKey,
+             correlation_id = CorrelationId,
+             continuations  = Continuations}) ->
     Props = #'P_basic'{
                 correlation_id = list_to_binary(integer_to_list(CorrelationId)),
                 content_type   = <<"application/json">>
@@ -256,11 +263,8 @@ publish(Payload, From, ReturnMethod, State
 			       routing_key = RoutingKey,
 			       mandatory   = true},
 
-    UUID = uuid:to_string(uuid:v4()),
-    Id = list_to_binary("celery_rpc_" ++ UUID),
-
-    State1 = State#state{reply_queue=Id},
-    Payload1 = msg_to_json(Payload#celery_msg{id = Id}),
+    State1 = State#state{reply_queue=RequestId},
+    Payload1 = msg_to_json(Payload#celery_msg{id = RequestId}),
 
     setup_reply_queue(State1),
     setup_consumer(State1),
@@ -268,7 +272,7 @@ publish(Payload, From, ReturnMethod, State
     amqp_channel:call(Channel, Publish, #amqp_msg{props   = Props,
 						  payload = Payload1}),
     State1#state{correlation_id = CorrelationId + 1,
-		 continuations = dict:store(Id, {From, ReturnMethod}, Continuations)}.
+		 continuations = dict:store(RequestId, {From, ReturnMethod}, Continuations)}.
     
 setup_reply_queue(#state{channel = Channel, reply_queue = Q}) ->
     #'queue.declare_ok'{} =

@@ -3,9 +3,10 @@
 -include("include/celery.hrl").
 -include("deps/amqp_client/include/amqp_client.hrl").
 
--export([test/0, msg_to_json/1, add/2, safe_add/2, async_add/2, async_add/3,
-         async_add/4, async_add_reply_to_spawned_process/2,
-         receive_response/1, receive_and_log_response/1]).
+-export([test/0, msg_to_json/1, add/2, safe_add/2, async_add/2,
+         async_add_with_timeout/3, async_add_with_request_id/3,
+         async_add_reply_to_spawned_process/2, receive_response/1,
+         receive_and_log_response/1]).
 
 test() ->
     {ok, C} = amqp_connection:start(#amqp_params_network{}),
@@ -29,15 +30,17 @@ safe_add(A, B) ->
     end.
 
 async_add(A, B) ->
-    async_add(A, B, 10000).
+    async_add_with_timeout(A, B, 10000).
 
-async_add(A, B, Timeout) ->
-    async_add(A, B, self(), Timeout).
-
-async_add(A, B, Recipient, Timeout) ->
+async_add_with_timeout(A, B, Timeout) ->
     Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
-    celery:cast(Msg, Recipient),
+    celery:cast(Msg, self()),
     receive_response(Timeout).
+
+async_add_with_request_id(A, B, RequestId) ->
+    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
+    celery:cast(Msg, self(), RequestId),
+    receive_response(10000).
 
 async_add_reply_to_spawned_process(A, B) ->
     Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
