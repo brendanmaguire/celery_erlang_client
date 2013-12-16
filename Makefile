@@ -3,16 +3,16 @@
 all: app
 
 app: get-deps
-	@./rebar compile
+	@rebar compile
 
 get-deps:
-	@./rebar get-deps
+	@rebar get-deps
 
 clean:
-	@./rebar clean
+	@rebar clean
 	rm -f erl_crash.dump
 
 dist-clean: clean
 
 test: app
-	@./rebar eunit skip_deps=true
+	@rebar eunit skip_deps=true
