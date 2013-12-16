@@ -4,13 +4,14 @@ This is an Erlang library for interfacing with `Celery <http://www.celeryproject
 
 Build
 -----
-``` make ```
+`` make ``
 
 Usage
 -----
 Check out demo.erl
 
 ::
+
     $ erl
 
     Eshell V5.9.3.1  (abort with ^G)
