@@ -1,19 +1,20 @@
+%
+% Use this module to test the celery application. View the README.rst for more
+% information on usage.
+%
+
 -module(demo).
 
 -include("include/celery.hrl").
 -include("deps/amqp_client/include/amqp_client.hrl").
 
--export([test/0, msg_to_json/1, add/2, safe_add/2, async_add/2,
+-export([start_celery_app/0, msg_to_json/1, add/2, safe_add/2, async_add/2,
          async_add_with_timeout/3, async_add_with_request_id/3,
          async_add_reply_to_spawned_process/2, receive_response/1,
          receive_and_log_response/1]).
 
-test() ->
-    {ok, C} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Rpc} = celery:start_link(C, <<"celery">>),
-    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[2,3] },
-    celery:call(Rpc, Msg),
-    {ok, Rpc}.
+start_celery_app() ->
+    celery_app:start().
 
 add(A, B) ->
     Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
