@@ -26,10 +26,27 @@ start_link(AmqpParams) ->
 %% Supervisor callbacks
 %% ===================================================================
 init([AmqpParams]) ->
-    {ok, Con} = amqp_connection:start(AmqpParams),
+    {ok, Con} = start_amqp_connection(AmqpParams, 5, 2000),
     Q = <<"celery">>,
     Server = {celery, {celery, start_link, [Con, Q]},
-	     permanent, 2000, worker, [celery]},
+              permanent, 2000, worker, [celery]},
     Children = [Server],
     RestartStrategy = {one_for_one, 5, 10},
     {ok, { RestartStrategy, Children} }.
+
+%% ===================================================================
+%% Internal function(s)
+%% ===================================================================
+start_amqp_connection(AmqpParams, RetriesLeft, Interval) ->
+    case amqp_connection:start(AmqpParams) of
+        {ok, Con} ->
+            {ok, Con};
+        Error ->
+            case RetriesLeft of
+                0 ->
+                    Error;
+                _ ->
+                    timer:sleep(Interval),
+                    start_amqp_connection(AmqpParams, RetriesLeft - 1, Interval)
+            end
+    end.
