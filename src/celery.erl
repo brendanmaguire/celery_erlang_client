@@ -280,7 +280,13 @@ setup_reply_queue(#state{channel = Channel, reply_queue = Q}) ->
                           #'queue.declare'{
                                 queue = Q, durable = false, auto_delete = true,
                                 arguments = [{<<"x-expires">>, signedint,
-                                              86400000}]}).
+                                              86400000}]}),
+    #'queue.bind_ok'{} =
+        amqp_channel:call(Channel,
+                          #'queue.bind'{
+                                queue = Q,
+                                exchange = <<"celeryresults">>,
+                                routing_key = Q}).
 
 setup_consumer(#state{channel = Chan, reply_queue = Q}) ->
     amqp_channel:call(Chan, #'basic.consume'{queue = Q}).
