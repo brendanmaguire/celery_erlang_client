@@ -1,15 +1,18 @@
 %% -*- Mode: Erlang; fill-column: 75; comment-column: 50 -*-
 
 {application, celery,
- [
-  {description, "Celery AMQP RPC Client"},
-  {vsn, "0.2.3"},
-  {registered, [celery_sup]},
-  {modules, [celery_app, celery_sup, celery]},
-  {applications, [
-                  kernel,
-                  stdlib
-                 ]},
-  {mod, { celery_app, []}},
-  {env, []}
- ]}.
+    [
+        {description, "Celery AMQP RPC Client"},
+        {vsn, "0.2.3"},
+        {registered, [celery_sup]},
+        {modules, [celery_app, celery_sup, celery]},
+        {applications, [kernel, stdlib]},
+        {mod, { celery_app, []}},
+        {env, [
+            %% These environment variables can be set to specify the
+            %% application behaviour. The defaults are commented out below
+            %% {amqp_params, [{host, "localhost"}, {virtual_host, <<"/">>}]},
+            %% {reply_queue_durable, true}
+        ]}
+    ]
+}.

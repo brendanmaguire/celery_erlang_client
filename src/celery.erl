@@ -14,7 +14,7 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 
 %% API
--export([start_link/2, stop/0]).
+-export([start_link/3, stop/0]).
 -export([call/1, call/2, cast/1, cast/2, cast/3]).
 
 %% gen_server callbacks
@@ -26,6 +26,7 @@
 
 -record(state, {channel,
                 reply_queue,
+                reply_queue_durable,
                 exchange,
                 routing_key,
                 continuations = dict:new(),
@@ -42,8 +43,10 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Connection, RoutingKey) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Connection, RoutingKey], []).
+start_link(Connection, RoutingKey, ReplyQueueDurable) ->
+    gen_server:start_link(
+        {local, ?SERVER}, ?MODULE,
+        [Connection, RoutingKey, ReplyQueueDurable], []).
 
 stop() ->
     gen_server:cast(?MODULE, stop).
@@ -99,11 +102,13 @@ cast(Msg = #celery_msg{}, Recipient, RequestId) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Connection, RoutingKey]) ->
+init([Connection, RoutingKey, ReplyQueueDurable]) ->
     {ok, Channel} = amqp_connection:open_channel(Connection),
-    InitState = #state{channel = Channel,
-		       exchange = <<>>,
-		       routing_key = RoutingKey},
+    InitState = #state{
+        channel = Channel,
+        exchange = <<>>,
+        routing_key = RoutingKey,
+        reply_queue_durable = ReplyQueueDurable},
     process_flag(trap_exit, true),
     {ok, InitState}.
 
@@ -274,11 +279,12 @@ publish(Payload, From, ReturnMethod, RequestId, State
     State1#state{correlation_id = CorrelationId + 1,
 		 continuations = dict:store(RequestId, {From, ReturnMethod}, Continuations)}.
     
-setup_reply_queue(#state{channel = Channel, reply_queue = Q}) ->
+setup_reply_queue(#state{
+        channel=Channel, reply_queue=Q, reply_queue_durable=ReplyQueueDurable}) ->
     #'queue.declare_ok'{} =
         amqp_channel:call(Channel,
                           #'queue.declare'{
-                                queue = Q, durable = false, auto_delete = true,
+                                queue = Q, durable = ReplyQueueDurable, auto_delete = true,
                                 arguments = [{<<"x-expires">>, signedint,
                                               86400000}]}),
     #'queue.bind_ok'{} =

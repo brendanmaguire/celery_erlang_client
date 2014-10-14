@@ -10,6 +10,8 @@
 %% Utility. Exported for testing purposes.
 -export([env_variables_to_amqp_params/1]).
 
+-define (DefaultReplyQueueDurable, true).
+
 
 %% ===================================================================
 %% Application callbacks
@@ -18,12 +20,22 @@ start() ->
     application:start(celery).
 
 start(_StartType, _StartArgs) ->
-    AmqpParams = env_variables_to_amqp_params(application:get_all_env(celery)),
-    case celery_sup:start_link(AmqpParams) of
-	{ok, Pid} ->
-	    {ok, Pid};
-	Other ->
-	    {error, Other}
+
+    AmqpParams = case application:get_env(celery, amqp_params) of
+        {ok, EnvVariables} -> env_variables_to_amqp_params(EnvVariables);
+        undefined -> #amqp_params_network{}
+    end,
+
+    ReplyQueueDurable = case application:get_env(reply_queue_durable) of
+        {ok, Value} -> Value;
+        undefined -> ?DefaultReplyQueueDurable
+    end,
+
+    case celery_sup:start_link(AmqpParams, ReplyQueueDurable) of
+        {ok, Pid} ->
+            {ok, Pid};
+        Other ->
+            {error, Other}
     end.
 
 
