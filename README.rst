@@ -8,7 +8,15 @@ Build
 
 Usage
 -----
-Check out demo.erl
+Check out demo.erl which sends tasks to a local RabbitMQ instance.
+
+Start the Celery workers:
+
+::
+
+    celery worker --app tasks --loglevel info
+
+Run the application and send requests:
 
 ::
 

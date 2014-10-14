@@ -4,3 +4,4 @@ ebin/
 *~
 *.beam
 *.dump
+*.pyc

@@ -17,7 +17,7 @@ start_celery_app() ->
     celery_app:start().
 
 add(A, B) ->
-    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
+    Msg = #celery_msg{task= <<"tasks.add">>, args=[A,B]},
     celery:call(Msg).
 
 safe_add(A, B) ->
@@ -34,17 +34,17 @@ async_add(A, B) ->
     async_add_with_timeout(A, B, 10000).
 
 async_add_with_timeout(A, B, Timeout) ->
-    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
+    Msg = #celery_msg{task= <<"tasks.add">>, args=[A,B]},
     celery:cast(Msg, self()),
     receive_response(Timeout).
 
 async_add_with_request_id(A, B, RequestId) ->
-    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
+    Msg = #celery_msg{task= <<"tasks.add">>, args=[A,B]},
     celery:cast(Msg, self(), RequestId),
     receive_response(10000).
 
 async_add_reply_to_spawned_process(A, B) ->
-    Msg = #celery_msg{task= <<"documents.tasks.add">>, args=[A,B]},
+    Msg = #celery_msg{task= <<"tasks.add">>, args=[A,B]},
     Recipient = spawn(demo, receive_and_log_response, [10000]),
     io:format("Sent request from ~p~n", [self()]),
     celery:cast(Msg, Recipient).
