@@ -4,7 +4,11 @@ This is an Erlang library for interfacing with `Celery <http://www.celeryproject
 
 Build
 -----
-`` make ``
+Run make from the root folder to build the library and its dependencies.
+
+::
+
+    $ make
 
 Usage
 -----
@@ -14,7 +18,7 @@ Start the Celery workers:
 
 ::
 
-    celery worker --app tasks --loglevel info
+    $ celery worker --app tasks --loglevel info
 
 Run the application and send requests:
 
