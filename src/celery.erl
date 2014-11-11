@@ -195,7 +195,7 @@ handle_info({#'basic.deliver'{delivery_tag = DeliveryTag,
 			   channel = Chan}
 	   ) ->
 
-    {Reply} = ejson:decode(Payload),
+    Reply = jsx:decode(Payload),
     Result = #celery_res{
       task_id   = proplists:get_value(<<"task_id">>, Reply),
       status    = proplists:get_value(<<"status">>, Reply),
@@ -299,17 +299,17 @@ setup_consumer(#state{channel = Chan, reply_queue = Q}) ->
     
 
 msg_to_json(#celery_msg{id = Id,
-			task = Task,
-			args = Args,
-			kwargs = Kwargs,
-			retries = Retries,
-			eta = Eta}) ->
-    M = {[
-	  {id, Id},
-	  {task, Task},
-	  {args, Args},
-	  {kwargs, Kwargs},
-	  {retries, Retries},
-	  {eta, Eta}
-	 ]},
-    ejson:encode(M).
+                        task = Task,
+                        args = Args,
+                        kwargs = Kwargs,
+                        retries = Retries,
+                        eta = Eta}) ->
+    M = [
+        {id, Id},
+        {task, Task},
+        {args, Args},
+        {kwargs, Kwargs},
+        {retries, Retries},
+        {eta, Eta}
+    ],
+    jsx:encode(M).

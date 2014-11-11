@@ -64,17 +64,17 @@ receive_and_log_response(Timeout) ->
     io:format("Received response ~p in ~p~n", [Response, self()]).
 
 msg_to_json(#celery_msg{id = Id,
-			task = Task,
-			args = Args,
-			kwargs = Kwargs,
-			retries = Retries,
-			eta = Eta}) ->
-    M = {[
-	  {id, Id},
-	  {task, Task},
-	  {args, Args},
-	  {kwargs, Kwargs},
-	  {retries, Retries},
-	  {eta, Eta}
-	 ]},
+            task = Task,
+            args = Args,
+            kwargs = Kwargs,
+            retries = Retries,
+            eta = Eta}) ->
+    M = [
+      {id, Id},
+      {task, Task},
+      {args, Args},
+      {kwargs, Kwargs},
+      {retries, Retries},
+      {eta, Eta}
+    ],
     json:encode(M).
