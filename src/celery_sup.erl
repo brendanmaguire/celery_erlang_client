@@ -27,7 +27,7 @@ start_link(AmqpParams, ReplyQueueDurable) ->
 %% Supervisor callbacks
 %% ===================================================================
 init([AmqpParams, ReplyQueueDurable]) ->
-    {ok, Connection} = start_amqp_connection(AmqpParams, 5, 2000),
+    {ok, Connection} = start_amqp_connection(AmqpParams, 4, 2000),
     QueueName = <<"celery">>,
     Server = {
         celery,
@@ -44,13 +44,13 @@ init([AmqpParams, ReplyQueueDurable]) ->
 %% Internal function(s)
 %% ===================================================================
 start_amqp_connection(AmqpParams, RetriesLeft, Interval) ->
-    case amqp_connection:start(AmqpParams) of
-        {ok, Connection} ->
-            {ok, Connection};
-        Error ->
+    try
+        {ok, Connection} = amqp_connection:start(AmqpParams)
+    catch
+        exit:Exit ->
             case RetriesLeft of
                 0 ->
-                    Error;
+                    {error, celery_connection_error, Exit};
                 _ ->
                     timer:sleep(Interval),
                     start_amqp_connection(AmqpParams, RetriesLeft-1, Interval)
