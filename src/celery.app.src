@@ -3,7 +3,7 @@
 {application, celery,
     [
         {description, "Celery AMQP RPC Client"},
-        {vsn, "0.3.2"},
+        {vsn, "0.3.3"},
         {registered, [celery_sup]},
         {modules, [celery_app, celery_sup, celery]},
         {applications, [kernel, stdlib]},
