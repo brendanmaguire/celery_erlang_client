@@ -45,14 +45,31 @@ init([AmqpParams, ReplyQueueDurable]) ->
 %% ===================================================================
 start_amqp_connection(AmqpParams, RetriesLeft, Interval) ->
     try
-        {ok, Connection} = amqp_connection:start(AmqpParams)
+        case amqp_connection:start(AmqpParams) of
+            {error, Error} ->
+                retry_amqp_connection(
+                    AmqpParams, RetriesLeft, Interval, {error, Error});
+            Result ->
+                Result
+        end
     catch
         exit:Exit ->
-            case RetriesLeft of
-                0 ->
-                    {error, celery_connection_error, Exit};
-                _ ->
-                    timer:sleep(Interval),
-                    start_amqp_connection(AmqpParams, RetriesLeft-1, Interval)
-            end
+            retry_amqp_connection(
+                AmqpParams, RetriesLeft, Interval,
+                {exit_exception, Exit, erlang:get_stacktrace()});
+        error:Err ->
+            retry_amqp_connection(
+                AmqpParams, RetriesLeft, Interval,
+                {error_exception, Err, erlang:get_stacktrace()})
     end.
+
+retry_amqp_connection(_AmqpParams, RetriesLeft, _Interval, Issue)
+        when RetriesLeft == 0 ->
+    {error, celery_connection_error, Issue};
+
+retry_amqp_connection(AmqpParams, RetriesLeft, Interval, Issue) ->
+    lager:warning(
+        "An issue occurred when starting the amqp connection. Restarting in ~p"
+        " with ~p retries left. Issue: ~p", [Interval, RetriesLeft, Issue]),
+    timer:sleep(Interval),
+    start_amqp_connection(AmqpParams, RetriesLeft-1, Interval).
