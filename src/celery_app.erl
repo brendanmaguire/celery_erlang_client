@@ -20,6 +20,7 @@ start() ->
     application:start(celery).
 
 start(_StartType, _StartArgs) ->
+    lager:start(),
 
     AmqpParams = case application:get_env(celery, amqp_params) of
         {ok, EnvVariables} -> env_variables_to_amqp_params(EnvVariables);

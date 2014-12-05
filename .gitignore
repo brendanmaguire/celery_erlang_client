@@ -1,8 +1,10 @@
 deps/
 ebin/
+log/
 .eunit/
 *~
 *.beam
 *.dump
 *.pyc
 .ropeproject/
+*.swp
