@@ -281,6 +281,10 @@ publish(Payload, From, ReturnMethod, RequestId, State
     
 setup_reply_queue(#state{
         channel=Channel, reply_queue=Q, reply_queue_durable=ReplyQueueDurable}) ->
+    #'exchange.declare_ok'{} =
+        amqp_channel:call(Channel,
+            #'exchange.declare'{exchange = <<"celeryresults">>,
+                                durable = true}),
     #'queue.declare_ok'{} =
         amqp_channel:call(Channel,
                           #'queue.declare'{
